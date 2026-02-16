@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "api/validate-image.js": {
-      "maxDuration": 30,
-      "memory": 256
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
