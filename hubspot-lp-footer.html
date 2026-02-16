@@ -1,1046 +1,675 @@
 <!-- 
-  ═══════════════════════════════════════════════════════════
-  FindMyMarket — HubSpot LP Footer HTML
-  인터뷰 스크리닝 폼 (드래그앤드롭 업로드 + Claude Vision 검증)
+  ═══════════════════════════════════════════════════════════════
+  FindMyMarket — HubSpot LP Footer HTML v3
   
-  삽입 위치: HubSpot Landing Page → Settings → Advanced → Footer HTML
-  전제 조건:
-    1. HubSpot Form에 다음 Contact Property 필드가 있어야 함:
-       - interview_category (Dropdown / Radio)
-       - product_image (File)
-       - receipt_image (File)
-       - screening_status (Single-line text)
-       - screening_score (Number)
-    2. Vercel에 validate-image API 배포 완료
-    3. Landing Page에 Form 모듈이 배치되어 있어야 함
-  ═══════════════════════════════════════════════════════════
+  실제 폼 구조 기반 (HubSpot 신형 Form Editor / hsfc- 클래스)
+  
+  감지 필드:
+    - industry_category (radio) — 카테고리 선택
+    - interview_product (multi checkbox) — 구체적 제품/서비스 선택
+    - product_image (file) — 제품 사진
+    - receipt_image (file) — 영수증
+  
+  삽입: HubSpot Landing Page → Settings → Advanced → Footer HTML
+  ═══════════════════════════════════════════════════════════════
 -->
 
-<!-- ① CSS -->
 <style>
-/* ── FindMyMarket Custom Form Styles ── */
+/* ═══ FindMyMarket Screening v3 ═══ */
 :root {
-  --fmm-blue: #2563eb;
-  --fmm-blue-light: #eff6ff;
-  --fmm-blue-border: #93c5fd;
-  --fmm-green: #059669;
-  --fmm-green-light: #ecfdf5;
-  --fmm-red: #dc2626;
-  --fmm-red-light: #fef2f2;
-  --fmm-amber: #d97706;
-  --fmm-amber-light: #fffbeb;
-  --fmm-gray-50: #f9fafb;
-  --fmm-gray-100: #f3f4f6;
-  --fmm-gray-200: #e5e7eb;
-  --fmm-gray-300: #d1d5db;
-  --fmm-gray-500: #6b7280;
-  --fmm-gray-700: #374151;
-  --fmm-gray-900: #111827;
-  --fmm-radius: 12px;
-  --fmm-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  --fm-blue: #2563eb; --fm-blue-lt: #eff6ff; --fm-blue-bd: #93c5fd;
+  --fm-green: #059669; --fm-green-lt: #ecfdf5;
+  --fm-red: #dc2626; --fm-red-lt: #fef2f2;
+  --fm-amber: #d97706; --fm-amber-lt: #fffbeb;
+  --fm-g50: #f9fafb; --fm-g100: #f3f4f6; --fm-g200: #e5e7eb;
+  --fm-g300: #d1d5db; --fm-g500: #6b7280; --fm-g700: #374151; --fm-g900: #111827;
+  --fm-r: 12px;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
-
-/* ── Category Image Cards ── */
-.fmm-category-grid {
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  list-style: none !important;
-  padding: 0 !important;
-  margin: 10px 0 0 0 !important;
+/* ── Validation banner (제품명 입력 후 표시) ── */
+.fm-ready-banner {
+  margin: 16px 0; padding: 14px 16px;
+  background: var(--fm-blue-lt); border: 1px solid var(--fm-blue-bd);
+  border-radius: var(--fm-r);
+  animation: fmFade 0.35s ease;
 }
-@media (max-width: 480px) {
-  .fmm-category-grid { grid-template-columns: repeat(2, 1fr) !important; }
+@keyframes fmFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.fmm-category-grid li {
-  margin: 0 !important;
-  padding: 0 !important;
-  list-style: none !important;
+.fm-ready-hd {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 800; color: var(--fm-g900);
 }
-.fmm-card-label {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 16px 10px 14px !important;
-  border: 2px solid var(--fmm-gray-200) !important;
-  border-radius: var(--fmm-radius) !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  background: #fff !important;
-  text-align: center !important;
-  position: relative !important;
-  min-height: 120px !important;
-  user-select: none !important;
+.fm-ready-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--fm-blue); color: #fff;
+  font-size: 10px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
 }
-.fmm-card-label:hover {
-  border-color: var(--fmm-blue-border) !important;
-  box-shadow: 0 2px 10px rgba(37,99,235,0.08) !important;
+.fm-ready-desc {
+  font-size: 12px; color: var(--fm-g500); margin: 4px 0 0 30px;
 }
-.fmm-card-label.fmm-selected {
-  border-color: var(--fmm-blue) !important;
-  background: var(--fmm-blue-light) !important;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
-}
-.fmm-card-label input { position: absolute !important; opacity: 0 !important; width: 0 !important; height: 0 !important; }
-.fmm-card-img {
-  width: 56px; height: 56px;
-  object-fit: contain;
-  margin-bottom: 8px;
-  border-radius: 8px;
-}
-.fmm-card-emoji {
-  font-size: 36px;
-  margin-bottom: 8px;
-  line-height: 1;
-}
-.fmm-card-text {
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  color: var(--fmm-gray-700) !important;
-  line-height: 1.3 !important;
-}
-.fmm-card-sub {
-  font-size: 10px;
-  color: var(--fmm-gray-500);
-  margin-top: 2px;
-}
-.fmm-card-check {
-  position: absolute;
-  top: 7px; right: 7px;
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--fmm-gray-300);
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: transparent;
-  transition: all 0.15s;
-}
-.fmm-card-label.fmm-selected .fmm-card-check {
-  border-color: var(--fmm-blue);
-  background: var(--fmm-blue);
-  color: #fff;
+.fm-product-tag {
+  display: inline-block; background: var(--fm-blue); color: #fff;
+  font-size: 12px; font-weight: 700; padding: 3px 12px;
+  border-radius: 16px; margin: 8px 0 0 30px;
 }
 
-/* ── Dropzone ── */
-.fmm-dropzone-wrap { margin-top: 6px; }
-.fmm-dz-desc {
-  font-size: 12px;
-  color: var(--fmm-gray-500);
-  margin-bottom: 10px;
+/* ── Custom dropzone (기존 file input 대체) ── */
+.fm-dz-wrap {
+  margin: 10px 0;
+  animation: fmFade 0.3s ease;
 }
-.fmm-dropzone {
-  border: 2px dashed var(--fmm-gray-300);
-  border-radius: var(--fmm-radius);
-  padding: 28px 16px;
+.fm-dropzone {
+  border: 2px dashed var(--fm-g300);
+  border-radius: var(--fm-r);
+  padding: 22px 14px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.25s;
-  background: var(--fmm-gray-50);
-  position: relative;
+  transition: all 0.2s;
+  background: var(--fm-g50);
 }
-.fmm-dropzone:hover {
-  border-color: var(--fmm-blue-border);
-  background: #f0f7ff;
+.fm-dropzone:hover {
+  border-color: var(--fm-blue-bd);
+  background: #f8fbff;
 }
-.fmm-dropzone.fmm-dragover {
-  border-color: var(--fmm-blue);
-  background: var(--fmm-blue-light);
-  box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+.fm-dropzone.fm-over {
+  border-color: var(--fm-blue);
+  background: var(--fm-blue-lt);
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
 }
-.fmm-dropzone.fmm-has-error {
-  border-color: #fca5a5;
-  background: var(--fmm-red-light);
+.fm-dropzone.fm-full {
+  opacity: 0.4;
+  pointer-events: none;
 }
-.fmm-dz-icon { font-size: 32px; margin-bottom: 6px; }
-.fmm-dz-title { font-size: 14px; font-weight: 700; color: var(--fmm-gray-700); }
-.fmm-dz-link { color: var(--fmm-blue); text-decoration: underline; }
-.fmm-dz-sub { font-size: 11px; color: var(--fmm-gray-500); margin-top: 2px; }
-.fmm-dz-formats { display: flex; gap: 5px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
-.fmm-fmt-tag {
-  background: var(--fmm-gray-100);
-  color: var(--fmm-gray-500);
-  font-size: 10px; font-weight: 600;
-  padding: 2px 7px; border-radius: 4px;
-  text-transform: uppercase;
-}
-.fmm-dropzone input[type="file"] { display: none; }
+.fm-dz-icon { font-size: 26px; margin-bottom: 3px; }
+.fm-dz-title { font-size: 13px; font-weight: 700; color: var(--fm-g700); }
+.fm-dz-link { color: var(--fm-blue); text-decoration: underline; }
+.fm-dz-sub { font-size: 10px; color: var(--fm-g500); margin-top: 2px; }
+.fm-dz-fmts { display: flex; gap: 4px; justify-content: center; margin-top: 7px; }
+.fm-fmt { background: var(--fm-g100); color: var(--fm-g500); font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; }
 
 /* ── File list ── */
-.fmm-file-list { margin-top: 10px; }
-.fmm-file-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px;
-  background: var(--fmm-gray-50);
-  border: 1px solid var(--fmm-gray-200);
-  border-radius: 8px;
-  margin-top: 8px;
-  animation: fmmSlideUp 0.25s ease;
-  position: relative;
+.fm-file-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px; background: #fff;
+  border: 1px solid var(--fm-g200); border-radius: 8px;
+  margin-top: 7px; animation: fmFade 0.25s ease;
 }
-@keyframes fmmSlideUp {
-  from { opacity:0; transform: translateY(6px); }
-  to   { opacity:1; transform: translateY(0); }
-}
-.fmm-file-thumb {
-  width: 44px; height: 44px;
-  border-radius: 6px; object-fit: cover;
-  flex-shrink: 0;
-}
-.fmm-file-placeholder {
-  width: 44px; height: 44px;
-  border-radius: 6px;
-  background: var(--fmm-gray-100);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; flex-shrink: 0;
-}
-.fmm-file-info { flex: 1; min-width: 0; }
-.fmm-file-name {
-  font-size: 13px; font-weight: 600; color: var(--fmm-gray-700);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.fmm-file-meta { font-size: 11px; color: var(--fmm-gray-500); margin-top: 1px; }
-.fmm-file-remove {
-  width: 26px; height: 26px; border-radius: 50%;
-  border: none; background: transparent;
-  color: var(--fmm-gray-500); font-size: 14px;
+.fm-file-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.fm-file-ph { width: 40px; height: 40px; border-radius: 6px; background: var(--fm-g100); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.fm-file-name { font-size: 12px; font-weight: 600; color: var(--fm-g700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-file-meta { font-size: 10px; color: var(--fm-g500); }
+.fm-file-rm {
+  width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: transparent; color: var(--fm-g500); font-size: 12px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: all 0.15s;
-}
-.fmm-file-remove:hover { background: var(--fmm-red-light); color: var(--fmm-red); }
-.fmm-file-count { margin-top: 6px; font-size: 11px; color: var(--fmm-gray-500); text-align: right; }
-.fmm-error-msg { font-size: 12px; color: var(--fmm-red); margin-top: 6px; display: none; }
-.fmm-error-msg.show { display: block; }
-
-/* ── Validation Result ── */
-.fmm-validation-panel {
-  margin-top: 16px;
-  border-radius: var(--fmm-radius);
-  overflow: hidden;
-  animation: fmmSlideUp 0.35s ease;
-  box-shadow: var(--fmm-shadow);
-}
-.fmm-vp-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 16px 18px;
-  font-size: 14px; font-weight: 700;
-}
-.fmm-vp-body { padding: 0 18px 18px; font-size: 13px; line-height: 1.7; }
-.fmm-vp-body dt { font-weight: 700; color: var(--fmm-gray-700); margin-top: 8px; }
-.fmm-vp-body dd { margin: 0 0 0 0; color: var(--fmm-gray-500); }
-
-.fmm-vp-approve { border: 1px solid #6ee7b7; }
-.fmm-vp-approve .fmm-vp-header { background: var(--fmm-green-light); color: var(--fmm-green); }
-.fmm-vp-review { border: 1px solid #fde68a; }
-.fmm-vp-review .fmm-vp-header { background: var(--fmm-amber-light); color: var(--fmm-amber); }
-.fmm-vp-reject { border: 1px solid #fca5a5; }
-.fmm-vp-reject .fmm-vp-header { background: var(--fmm-red-light); color: var(--fmm-red); }
-
-/* ── Score Ring ── */
-.fmm-score-ring {
-  width: 48px; height: 48px; flex-shrink: 0;
-  position: relative;
-}
-.fmm-score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.fmm-score-ring .ring-bg { fill: none; stroke: #e5e7eb; stroke-width: 4; }
-.fmm-score-ring .ring-fg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
-.fmm-score-value {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 900;
-}
-
-/* ── Validating Spinner ── */
-.fmm-validating {
-  display: flex; align-items: center; gap: 12px;
-  padding: 16px 18px;
-  background: var(--fmm-blue-light);
-  border: 1px solid var(--fmm-blue-border);
-  border-radius: var(--fmm-radius);
-  margin-top: 16px;
-  animation: fmmSlideUp 0.3s ease;
-}
-.fmm-spinner {
-  width: 24px; height: 24px;
-  border: 3px solid var(--fmm-blue-border);
-  border-top-color: var(--fmm-blue);
-  border-radius: 50%;
-  animation: fmmSpin 0.8s linear infinite;
   flex-shrink: 0;
 }
-@keyframes fmmSpin { to { transform: rotate(360deg); } }
-.fmm-validating-text { font-size: 13px; font-weight: 600; color: var(--fmm-blue); }
+.fm-file-rm:hover { background: var(--fm-red-lt); color: var(--fm-red); }
+.fm-file-cnt { font-size: 10px; color: var(--fm-g500); text-align: right; margin-top: 3px; }
 
-/* ── Next Step Banner ── */
-.fmm-next-step {
-  margin-top: 20px;
-  padding: 20px;
-  background: linear-gradient(135deg, #1e3a5f, #0f172a);
-  border-radius: var(--fmm-radius);
-  color: #fff;
-  text-align: center;
-  animation: fmmSlideUp 0.4s ease;
+/* ── Validation result ── */
+.fm-vp { margin-top: 10px; border-radius: var(--fm-r); overflow: hidden; animation: fmFade 0.35s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.fm-vp-hd { display: flex; align-items: center; gap: 10px; padding: 11px 14px; font-size: 13px; font-weight: 700; }
+.fm-vp-bd { padding: 0 14px 12px; font-size: 12px; line-height: 1.7; }
+.fm-vp-bd dt { font-weight: 700; color: var(--fm-g700); margin-top: 4px; }
+.fm-vp-bd dd { margin: 0; color: var(--fm-g500); }
+.fm-vp.pass { border: 1px solid #86efac; }
+.fm-vp.pass .fm-vp-hd { background: var(--fm-green-lt); color: var(--fm-green); }
+.fm-vp.warn { border: 1px solid #fde68a; }
+.fm-vp.warn .fm-vp-hd { background: var(--fm-amber-lt); color: var(--fm-amber); }
+.fm-vp.fail { border: 1px solid #fca5a5; }
+.fm-vp.fail .fm-vp-hd { background: var(--fm-red-lt); color: var(--fm-red); }
+
+.fm-ring { width: 38px; height: 38px; flex-shrink: 0; position: relative; }
+.fm-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.fm-ring .bg { fill: none; stroke: #e5e7eb; stroke-width: 4; }
+.fm-ring .fg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+.fm-ring-v { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; }
+
+.fm-loading {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; background: var(--fm-blue-lt);
+  border: 1px solid var(--fm-blue-bd); border-radius: var(--fm-r);
+  margin-top: 10px; animation: fmFade 0.3s ease;
 }
-.fmm-next-step h3 { font-size: 16px; font-weight: 900; margin-bottom: 6px; }
-.fmm-next-step p { font-size: 13px; color: #94a3b8; }
-
-.fmm-rejected-banner {
-  margin-top: 20px;
-  padding: 20px;
-  background: var(--fmm-red-light);
-  border: 1px solid #fca5a5;
-  border-radius: var(--fmm-radius);
-  text-align: center;
-  animation: fmmSlideUp 0.4s ease;
+.fm-spin {
+  width: 18px; height: 18px;
+  border: 3px solid var(--fm-blue-bd); border-top-color: var(--fm-blue);
+  border-radius: 50%; animation: fmSpin 0.7s linear infinite; flex-shrink: 0;
 }
-.fmm-rejected-banner h3 { font-size: 15px; font-weight: 700; color: var(--fmm-red); margin-bottom: 4px; }
-.fmm-rejected-banner p { font-size: 13px; color: var(--fmm-gray-500); }
+@keyframes fmSpin { to { transform: rotate(360deg); } }
 
-/* ── Section divider ── */
-.fmm-section-divider {
-  height: 1px;
-  background: var(--fmm-gray-100);
-  margin: 24px 0;
+/* Banners */
+.fm-banner-pass {
+  margin-top: 14px; padding: 14px;
+  background: linear-gradient(135deg, #064e3b, #0f172a);
+  border-radius: var(--fm-r); color: #fff; text-align: center;
+  animation: fmFade 0.4s ease;
+}
+.fm-banner-pass h4 { font-size: 14px; font-weight: 900; margin-bottom: 3px; }
+.fm-banner-pass p { font-size: 11px; color: #94a3b8; }
+.fm-banner-fail {
+  margin-top: 14px; padding: 14px;
+  background: var(--fm-red-lt); border: 1px solid #fca5a5;
+  border-radius: var(--fm-r); text-align: center;
+}
+.fm-banner-fail h4 { font-size: 13px; font-weight: 700; color: var(--fm-red); margin-bottom: 3px; }
+.fm-banner-fail p { font-size: 11px; color: var(--fm-g500); }
+.fm-banner-review {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--fm-amber-lt); border: 1px solid #fde68a;
+  border-radius: var(--fm-r); display: flex; align-items: center; gap: 9px;
 }
 </style>
 
-<!-- ② JavaScript -->
 <script>
 (function() {
   'use strict';
 
   // ================================================================
-  //  ★ CONFIG — 배포 전 반드시 수정하세요 ★
+  //  ★ CONFIG — 배포 전 수정 ★
   // ================================================================
-
-  const FMM_CONFIG = {
-    // Vercel API 엔드포인트 (validate-image.js 배포 후 URL)
+  var CONFIG = {
+    // Vercel API 엔드포인트
     API_ENDPOINT: "https://find-my-market-screening-v2.vercel.app/api/validate-image",
 
-    // 카테고리 옵션 (HubSpot property option value → 설정)
-    CATEGORIES: {
-      "botox_filler": {
-        label_ko: "보톡스/필러",
-        label_en: "Botox/Filler",
-        icon: "💉",         // 이미지 URL로 교체 가능: "https://cdn.../botox.png"
-        useImage: false,    // true면 icon을 <img src>로 사용
-      },
-      "laser_treatment": {
-        label_ko: "레이저 시술",
-        label_en: "Laser Treatment",
-        icon: "✨",
-        useImage: false,
-      },
-      "supplements": {
-        label_ko: "건강기능식품",
-        label_en: "Supplements",
-        icon: "💊",
-        useImage: false,
-      },
-      "cosmetics": {
-        label_ko: "화장품",
-        label_en: "Cosmetics",
-        icon: "🧴",
-        useImage: false,
-      },
-      "dental": {
-        label_ko: "치과 시술",
-        label_en: "Dental",
-        icon: "🦷",
-        useImage: false,
-      },
-      "eye_surgery": {
-        label_ko: "라식/라섹",
-        label_en: "LASIK/LASEK",
-        icon: "👁️",
-        useImage: false,
-      },
-    },
+    // ── 실제 HubSpot 폼 필드 name (0-1/ 접두사 포함) ──
+    CATEGORY_FIELD:  "0-1/industry_category",       // radio 필드
+    PRODUCT_FIELD:   "0-1/interview_product",         // multi checkbox 필드
+    PRODUCT_IMAGE:   "0-1/product_image",             // file 필드
+    RECEIPT_IMAGE:   "0-1/receipt_image",              // file 필드
+    EMAIL_FIELD:     "0-1/email",                     // email 필드
 
-    // 업로드 필드 설정
-    UPLOAD_FIELDS: {
-      "product_image": {
-        label: "제품/시술 사진 업로드",
-        desc: "구매 제품 사진 또는 시술 관련 사진을 업로드해주세요",
+    // 드래그앤드롭 설정
+    UPLOADS: {
+      product_image: {
+        fieldName: "0-1/product_image",
+        label: "제품/시술 사진",
         icon: "📸",
+        role: "product",
         maxFiles: 3,
         maxSizeMB: 10,
-        accept: "image/*",
         formats: ["JPG", "PNG", "WEBP", "HEIC"],
-        validate: true,     // Claude Vision 검증 실행 여부
       },
-      "receipt_image": {
-        label: "영수증/구매 증빙",
-        desc: "영수증, 카드 결제 내역, 온라인 주문 내역 캡처",
+      receipt_image: {
+        fieldName: "0-1/receipt_image",
+        label: "영수증 / 구매 증빙",
         icon: "🧾",
+        role: "receipt",
         maxFiles: 2,
         maxSizeMB: 10,
-        accept: "image/*,.pdf",
         formats: ["JPG", "PNG", "PDF"],
-        validate: true,
       },
     },
-
-    // 카테고리 필드의 HubSpot property internal name
-    CATEGORY_FIELD: "interview_category",
-
-    // 그리드 열 수
-    CATEGORY_COLUMNS: 3,
   };
-
 
   // ================================================================
   //  STATE
   // ================================================================
-
-  const _state = {
-    selectedCategory: null,
-    files: {},              // fieldName → [{ id, file, preview, status }]
-    validationResults: {},  // fieldName → result object
-    formEl: null,
+  var S = {
+    category: null,       // radio 선택값 (health_supplements 등)
+    categoryLabel: "",    // 라벨 텍스트
+    productName: "",      // 체크된 제품 라벨 (쉼표 구분)
+    productValues: [],    // 체크된 제품 value 배열
+    files: { product_image: [], receipt_image: [] },
+    results: {},
+    form: null,
+    injected: false,
   };
 
-  Object.keys(FMM_CONFIG.UPLOAD_FIELDS).forEach(k => { _state.files[k] = []; });
-
-
   // ================================================================
-  //  폼 로드 감지 (Landing Page용)
+  //  폼 로드 감지 (신형 폼 — hsfc-Form)
   // ================================================================
+  function tryBoot() {
+    var form = document.querySelector('.hsfc-Form');
+    if (form && !form.dataset.fmV3) {
+      form.dataset.fmV3 = '1';
+      S.form = form;
+      console.log('[FM] v3 boot — 신형 폼 감지됨');
+      init();
+      return true;
+    }
+    return false;
+  }
 
-  window.addEventListener('message', function(event) {
-    if (event.data.type === 'hsFormCallback' && event.data.eventName === 'onFormReady') {
-      setTimeout(function() {
-        const form = document.querySelector('.hs-form');
-        if (form && !form.dataset.fmmInjected) {
-          form.dataset.fmmInjected = 'true';
-          _state.formEl = form;
-          initFMM(form);
-        }
-      }, 600);
+  // 여러 방법으로 감지 시도
+  if (document.readyState === 'complete') {
+    tryBoot();
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!tryBoot()) {
+      var n = 0;
+      var poll = setInterval(function() {
+        if (tryBoot() || ++n > 40) clearInterval(poll);
+      }, 500);
     }
   });
-
-  // Fallback: DOMContentLoaded 후 폴링
-  document.addEventListener('DOMContentLoaded', function() {
-    let attempts = 0;
-    const poll = setInterval(function() {
-      const form = document.querySelector('.hs-form');
-      if (form && !form.dataset.fmmInjected) {
-        form.dataset.fmmInjected = 'true';
-        _state.formEl = form;
-        initFMM(form);
-        clearInterval(poll);
-      }
-      if (++attempts > 20) clearInterval(poll);
-    }, 500);
+  // HubSpot 메시지 이벤트도 감지
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'hsFormCallback') {
+      setTimeout(tryBoot, 800);
+    }
   });
-
+  // 최종 fallback
+  window.addEventListener('load', function() {
+    setTimeout(tryBoot, 1500);
+  });
 
   // ================================================================
   //  초기화
   // ================================================================
-
-  function initFMM(form) {
-    console.log('[FMM] Initializing FindMyMarket form enhancement...');
-    injectCategoryCards(form);
-    injectDropzones(form);
-    interceptFormSubmit(form);
-    console.log('[FMM] Initialization complete.');
+  function init() {
+    watchCategory();
+    watchProductName();
+    setupDropzones();
+    console.log('[FM] 초기화 완료 — 필드 감지 중');
   }
-
 
   // ================================================================
-  //  1. 카테고리 이미지 카드 주입
+  //  1. industry_category (radio) 감지
   // ================================================================
+  function watchCategory() {
+    var radios = S.form.querySelectorAll('input[name="' + CONFIG.CATEGORY_FIELD + '"]');
+    console.log('[FM] 카테고리 radio 발견:', radios.length + '개');
 
-  function injectCategoryCards(form) {
-    const fieldName = FMM_CONFIG.CATEGORY_FIELD;
-    const container = form.querySelector(`.hs_${fieldName}`);
-    if (!container) {
-      console.warn(`[FMM] Category field .hs_${fieldName} not found`);
-      return;
-    }
-
-    const inputs = container.querySelectorAll('input[type="radio"], select');
-    if (inputs.length === 0) {
-      console.warn('[FMM] No radio/select inputs found for category');
-      return;
-    }
-
-    // select (드롭다운) → 카드로 교체
-    const selectEl = container.querySelector('select');
-    if (selectEl) {
-      _convertSelectToCards(container, selectEl);
-      return;
-    }
-
-    // radio → 카드로 변환
-    const list = container.querySelector('ul.inputs-list');
-    if (list) {
-      _convertRadioToCards(list, container);
-    }
-  }
-
-  function _convertSelectToCards(container, selectEl) {
-    // 드롭다운 숨기기
-    const inputWrap = selectEl.closest('.input') || selectEl.parentElement;
-    if (inputWrap) inputWrap.style.display = 'none';
-
-    // 카드 그리드 생성
-    const grid = document.createElement('div');
-    grid.className = 'fmm-category-grid';
-    grid.style.gridTemplateColumns = `repeat(${FMM_CONFIG.CATEGORY_COLUMNS}, 1fr)`;
-
-    const options = selectEl.querySelectorAll('option');
-    options.forEach(opt => {
-      if (!opt.value) return;  // placeholder 스킵
-      const catConfig = FMM_CONFIG.CATEGORIES[opt.value];
-      if (!catConfig) return;
-
-      const card = document.createElement('div');
-      card.innerHTML = `
-        <label class="fmm-card-label" data-value="${opt.value}">
-          <input type="hidden">
-          ${catConfig.useImage
-            ? `<img class="fmm-card-img" src="${catConfig.icon}" alt="${catConfig.label_ko}">`
-            : `<div class="fmm-card-emoji">${catConfig.icon}</div>`}
-          <span class="fmm-card-text">${catConfig.label_ko}</span>
-          <span class="fmm-card-sub">${catConfig.label_en}</span>
-          <div class="fmm-card-check">✓</div>
-        </label>
-      `;
-      const label = card.querySelector('.fmm-card-label');
-      label.addEventListener('click', () => {
-        // 모든 카드 선택 해제
-        grid.querySelectorAll('.fmm-card-label').forEach(l => l.classList.remove('fmm-selected'));
-        // 이 카드 선택
-        label.classList.add('fmm-selected');
-        // select 값 변경
-        selectEl.value = opt.value;
-        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-        _state.selectedCategory = opt.value;
-        // 기존 검증 결과 초기화
-        _clearAllValidations();
-      });
-      grid.appendChild(card);
-    });
-
-    container.appendChild(grid);
-  }
-
-  function _convertRadioToCards(list, container) {
-    list.classList.add('fmm-category-grid');
-    list.style.gridTemplateColumns = `repeat(${FMM_CONFIG.CATEGORY_COLUMNS}, 1fr)`;
-
-    const inputs = list.querySelectorAll('input[type="radio"]');
-    inputs.forEach(input => {
-      const catConfig = FMM_CONFIG.CATEGORIES[input.value];
-      if (!catConfig) return;
-
-      const li = input.closest('li');
-      const label = input.closest('label') || (li ? li.querySelector('label') : null);
-      if (!label || li.dataset.fmmDone) return;
-      li.dataset.fmmDone = 'true';
-
-      // 카드 스타일로 변환
-      label.className = 'fmm-card-label';
-      input.style.cssText = 'position:absolute;opacity:0;width:0;height:0';
-
-      const textSpan = label.querySelector('span');
-      const origText = textSpan ? textSpan.textContent : input.value;
-
-      label.innerHTML = `
-        ${input.outerHTML}
-        ${catConfig.useImage
-          ? `<img class="fmm-card-img" src="${catConfig.icon}" alt="${catConfig.label_ko}">`
-          : `<div class="fmm-card-emoji">${catConfig.icon}</div>`}
-        <span class="fmm-card-text">${catConfig.label_ko}</span>
-        <span class="fmm-card-sub">${catConfig.label_en}</span>
-        <div class="fmm-card-check">✓</div>
-      `;
-
-      const newInput = label.querySelector('input');
-      newInput.addEventListener('change', () => {
-        list.querySelectorAll('.fmm-card-label').forEach(l => l.classList.remove('fmm-selected'));
-        if (newInput.checked) {
-          label.classList.add('fmm-selected');
-          _state.selectedCategory = newInput.value;
-          _clearAllValidations();
+    radios.forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        if (radio.checked) {
+          S.category = radio.value;
+          // 라벨 텍스트 가져오기
+          var label = radio.closest('label');
+          S.categoryLabel = label ? label.textContent.trim() : radio.value;
+          console.log('[FM] 카테고리 선택:', S.category, '→', S.categoryLabel);
+          onSelectionUpdated();
         }
       });
+      // 이미 선택된 경우
+      if (radio.checked) {
+        S.category = radio.value;
+        var label = radio.closest('label');
+        S.categoryLabel = label ? label.textContent.trim() : radio.value;
+      }
     });
   }
 
+  // ================================================================
+  //  2. interview_product (multi checkbox) 감지
+  // ================================================================
+  function watchProductName() {
+    var checkboxes = S.form.querySelectorAll('input[name="' + CONFIG.PRODUCT_FIELD + '"]');
+    if (checkboxes.length === 0) {
+      console.warn('[FM] 제품 체크박스 없음:', CONFIG.PRODUCT_FIELD);
+      return;
+    }
+    console.log('[FM] 제품 체크박스 발견:', checkboxes.length + '개');
+
+    checkboxes.forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        readCheckedProducts();
+        onSelectionUpdated();
+      });
+      // 이미 체크된 경우
+      if (cb.checked) {
+        readCheckedProducts();
+      }
+    });
+  }
+
+  function readCheckedProducts() {
+    var checked = S.form.querySelectorAll('input[name="' + CONFIG.PRODUCT_FIELD + '"]:checked');
+    var values = [];
+    var labels = [];
+    checked.forEach(function(cb) {
+      values.push(cb.value);
+      var label = cb.closest('label');
+      labels.push(label ? label.textContent.trim() : cb.value);
+    });
+    S.productName = labels.join(', ');
+    S.productValues = values;
+    console.log('[FM] 선택 제품:', S.productName, '(' + values.join(', ') + ')');
+  }
 
   // ================================================================
-  //  2. 드래그앤드롭 업로드 주입
+  //  3. 선택/입력 업데이트 → 업로드 영역 표시
   // ================================================================
+  function onSelectionUpdated() {
+    // 카테고리 + 제품명 둘 다 있어야 검증 가능
+    var ready = S.category && S.productName;
 
-  function injectDropzones(form) {
-    Object.entries(FMM_CONFIG.UPLOAD_FIELDS).forEach(([fieldName, config]) => {
-      const container = form.querySelector(`.hs_${fieldName}`);
-      if (!container) {
-        console.warn(`[FMM] Upload field .hs_${fieldName} not found`);
+    // 배너 표시
+    showReadyBanner(ready);
+
+    // 기존 결과 초기화 후 재검증
+    if (ready) {
+      S.results = {};
+      Object.keys(CONFIG.UPLOADS).forEach(function(key) {
+        var vp = document.getElementById('fm-val-' + key);
+        if (vp) vp.innerHTML = '';
+      });
+      var ob = document.getElementById('fm-overall');
+      if (ob) ob.innerHTML = '';
+
+      // 이미 파일이 있으면 재검증
+      Object.keys(CONFIG.UPLOADS).forEach(function(key) {
+        var cfg = CONFIG.UPLOADS[key];
+        if (S.files[key].length > 0 && S.files[key][0].base64) {
+          runValidation(key, S.files[key][0], cfg);
+        }
+      });
+    }
+  }
+
+  function showReadyBanner(ready) {
+    var existing = document.getElementById('fm-ready-banner');
+    if (existing) existing.remove();
+
+    if (!ready) return;
+
+    var banner = document.createElement('div');
+    banner.id = 'fm-ready-banner';
+    banner.className = 'fm-ready-banner';
+    banner.innerHTML =
+      '<div class="fm-ready-hd">' +
+        '<div class="fm-ready-num">✓</div>' +
+        '<div>이미지를 업로드하면 AI가 자동 검증합니다</div>' +
+      '</div>' +
+      '<div class="fm-ready-desc">아래 파일 업로드 영역에 제품 사진과 영수증을 업로드해주세요</div>' +
+      '<div class="fm-product-tag">' + S.categoryLabel + ' · ' + S.productName + '</div>';
+
+    // 제품 체크박스 그룹 다음에 삽입
+    var productCb = S.form.querySelector('input[name="' + CONFIG.PRODUCT_FIELD + '"]');
+    var fieldGroup = productCb ? productCb.closest('[data-hsfc-id]') : null;
+    if (fieldGroup) {
+      fieldGroup.parentElement.insertBefore(banner, fieldGroup.nextSibling);
+    }
+  }
+
+  // ================================================================
+  //  4. 드래그앤드롭 주입 (기존 file input 옆에)
+  // ================================================================
+  function setupDropzones() {
+    Object.keys(CONFIG.UPLOADS).forEach(function(key) {
+      var cfg = CONFIG.UPLOADS[key];
+      var nativeInput = S.form.querySelector('input[name="' + cfg.fieldName + '"]');
+      if (!nativeInput) {
+        console.warn('[FM] 파일 필드 없음:', cfg.fieldName);
         return;
       }
+      console.log('[FM] 파일 필드 발견:', cfg.fieldName);
 
-      // 기존 input 숨기기
-      const nativeInput = container.querySelector('input[type="file"]');
-      if (nativeInput) nativeInput.closest('.input').style.display = 'none';
+      // 기존 file input의 부모 영역 찾기
+      var fieldGroup = nativeInput.closest('[data-hsfc-id]');
 
       // 드래그앤드롭 UI 생성
-      const wrap = document.createElement('div');
-      wrap.className = 'fmm-dropzone-wrap';
-      wrap.innerHTML = `
-        <div class="fmm-dz-desc">${config.desc}</div>
-        <div class="fmm-dropzone" id="fmm-dz-${fieldName}">
-          <div class="fmm-dz-icon">${config.icon}</div>
-          <div class="fmm-dz-title">파일을 끌어놓거나 <span class="fmm-dz-link">클릭하여 선택</span></div>
-          <div class="fmm-dz-sub">최대 ${config.maxFiles}개 · 파일당 ${config.maxSizeMB}MB 이하</div>
-          <div class="fmm-dz-formats">
-            ${config.formats.map(f => `<span class="fmm-fmt-tag">${f}</span>`).join('')}
-          </div>
-          <input type="file" accept="${config.accept}" multiple>
-        </div>
-        <div class="fmm-file-list" id="fmm-list-${fieldName}"></div>
-        <div class="fmm-error-msg" id="fmm-err-${fieldName}"></div>
-        <div class="fmm-file-count" id="fmm-count-${fieldName}"></div>
-        <div id="fmm-validation-${fieldName}"></div>
-      `;
+      var wrap = document.createElement('div');
+      wrap.className = 'fm-dz-wrap';
+      wrap.id = 'fm-dz-wrap-' + key;
+      wrap.innerHTML =
+        '<div class="fm-dropzone" id="fm-dz-' + key + '">' +
+          '<div class="fm-dz-icon">' + cfg.icon + '</div>' +
+          '<div class="fm-dz-title">파일을 끌어놓거나 <span class="fm-dz-link">클릭하여 선택</span></div>' +
+          '<div class="fm-dz-sub">최대 ' + cfg.maxFiles + '개 · ' + cfg.maxSizeMB + 'MB 이하</div>' +
+          '<div class="fm-dz-fmts">' + cfg.formats.map(function(f) { return '<span class="fm-fmt">' + f + '</span>'; }).join('') + '</div>' +
+          '<input type="file" accept="image/*" multiple style="display:none">' +
+        '</div>' +
+        '<div id="fm-list-' + key + '"></div>' +
+        '<div class="fm-file-cnt" id="fm-cnt-' + key + '"></div>' +
+        '<div id="fm-val-' + key + '"></div>';
 
-      container.appendChild(wrap);
-      _initDropzone(fieldName, config);
+      // fieldGroup 바로 뒤에 삽입
+      if (fieldGroup) {
+        fieldGroup.parentElement.insertBefore(wrap, fieldGroup.nextSibling);
+      }
+
+      // 이벤트 연결
+      initDz(key, cfg);
     });
+
+    // 종합 결과 영역 삽입
+    var overall = document.createElement('div');
+    overall.id = 'fm-overall';
+    // submit 버튼 앞에 삽입
+    var submitBtn = S.form.querySelector('button[type="submit"], input[type="submit"], [data-hsfc-id="SubmitButton"]');
+    if (submitBtn) {
+      var submitParent = submitBtn.closest('[data-hsfc-id]') || submitBtn.parentElement;
+      submitParent.parentElement.insertBefore(overall, submitParent);
+    } else {
+      S.form.appendChild(overall);
+    }
   }
 
-  function _initDropzone(fieldName, config) {
-    const dz = document.getElementById(`fmm-dz-${fieldName}`);
+  function initDz(key, cfg) {
+    var dz = document.getElementById('fm-dz-' + key);
     if (!dz) return;
-    const fileInput = dz.querySelector('input[type="file"]');
+    var fi = dz.querySelector('input[type="file"]');
 
-    dz.addEventListener('click', (e) => {
-      if (e.target.closest('.fmm-file-remove')) return;
-      fileInput.click();
+    dz.addEventListener('click', function(e) {
+      if (!e.target.closest('.fm-file-rm')) fi.click();
     });
-    fileInput.addEventListener('change', () => {
-      _addFiles(fieldName, Array.from(fileInput.files), config);
-      fileInput.value = '';
+    fi.addEventListener('change', function() {
+      addFiles(key, Array.from(fi.files), cfg);
+      fi.value = '';
     });
-    dz.addEventListener('dragenter', (e) => { e.preventDefault(); dz.classList.add('fmm-dragover'); });
-    dz.addEventListener('dragover',  (e) => { e.preventDefault(); dz.classList.add('fmm-dragover'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('fmm-dragover'));
-    dz.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dz.classList.remove('fmm-dragover');
-      _addFiles(fieldName, Array.from(e.dataTransfer.files), config);
+    dz.addEventListener('dragenter', function(e) { e.preventDefault(); dz.classList.add('fm-over'); });
+    dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('fm-over'); });
+    dz.addEventListener('dragleave', function() { dz.classList.remove('fm-over'); });
+    dz.addEventListener('drop', function(e) {
+      e.preventDefault(); dz.classList.remove('fm-over');
+      addFiles(key, Array.from(e.dataTransfer.files), cfg);
     });
   }
 
-
   // ================================================================
-  //  3. 파일 관리
+  //  5. 파일 관리
   // ================================================================
+  function addFiles(key, newFiles, cfg) {
+    var store = S.files[key];
+    for (var i = 0; i < newFiles.length; i++) {
+      var file = newFiles[i];
+      if (store.length >= cfg.maxFiles) break;
+      if (file.size > cfg.maxSizeMB * 1024 * 1024) continue;
+      if (store.some(function(f) { return f.file.name === file.name; })) continue;
 
-  function _addFiles(fieldName, newFiles, config) {
-    _hideError(fieldName);
-    const store = _state.files[fieldName];
+      var entry = { id: Date.now() + Math.random(), file: file, preview: null, base64: null };
 
-    for (const file of newFiles) {
-      if (store.length >= config.maxFiles) {
-        _showError(fieldName, `최대 ${config.maxFiles}개까지 업로드 가능합니다.`);
-        break;
-      }
-      if (file.size > config.maxSizeMB * 1024 * 1024) {
-        _showError(fieldName, `"${file.name}" — ${config.maxSizeMB}MB 초과`);
-        continue;
-      }
-      if (store.some(f => f.file.name === file.name && f.file.size === file.size)) continue;
-
-      const entry = { id: Date.now() + Math.random(), file, preview: null, base64: null, status: 'ready' };
-
-      // 이미지 미리보기 + base64 생성
       if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          entry.preview = e.target.result;
-          entry.base64 = e.target.result.split(',')[1];  // data:image/...;base64,XXX → XXX
-          _renderFileList(fieldName, config);
-          // 자동 검증 트리거
-          if (config.validate && _state.selectedCategory) {
-            _validateImage(fieldName, entry);
-          }
-        };
-        reader.readAsDataURL(file);
+        (function(ent) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            ent.preview = e.target.result;
+            ent.base64 = e.target.result.split(',')[1];
+            renderList(key, cfg);
+            // 카테고리 + 제품명이 있으면 자동 검증
+            if (S.category && S.productName) {
+              runValidation(key, ent, cfg);
+            }
+          };
+          reader.readAsDataURL(ent.file);
+        })(entry);
       }
-
       store.push(entry);
     }
-    _renderFileList(fieldName, config);
+    renderList(key, cfg);
   }
 
-  function _removeFile(fieldName, fileId) {
-    const config = FMM_CONFIG.UPLOAD_FIELDS[fieldName];
-    _state.files[fieldName] = _state.files[fieldName].filter(f => f.id !== fileId);
-    _renderFileList(fieldName, config);
-    // 검증 결과도 초기화
-    const vPanel = document.getElementById(`fmm-validation-${fieldName}`);
-    if (vPanel) vPanel.innerHTML = '';
-    delete _state.validationResults[fieldName];
-    _updateDzState(fieldName, config);
+  function removeFile(key, fileId) {
+    S.files[key] = S.files[key].filter(function(f) { return f.id !== fileId; });
+    var cfg = CONFIG.UPLOADS[key];
+    renderList(key, cfg);
+    var vp = document.getElementById('fm-val-' + key);
+    if (vp) vp.innerHTML = '';
+    delete S.results[key];
+    var ob = document.getElementById('fm-overall');
+    if (ob) ob.innerHTML = '';
+    updateDz(key, cfg);
   }
-  // 전역 접근용
-  window._fmmRemoveFile = _removeFile;
+  window._fmRm = removeFile;
 
-  function _renderFileList(fieldName, config) {
-    const listEl = document.getElementById(`fmm-list-${fieldName}`);
-    const countEl = document.getElementById(`fmm-count-${fieldName}`);
-    const store = _state.files[fieldName];
-
-    if (listEl) {
-      listEl.innerHTML = store.map(entry => {
-        const thumb = entry.preview
-          ? `<img class="fmm-file-thumb" src="${entry.preview}">`
-          : `<div class="fmm-file-placeholder">${entry.file.type === 'application/pdf' ? '📄' : '🖼️'}</div>`;
-        const size = entry.file.size < 1024*1024
-          ? (entry.file.size/1024).toFixed(1) + ' KB'
-          : (entry.file.size/1024/1024).toFixed(1) + ' MB';
-        return `
-          <div class="fmm-file-item">
-            ${thumb}
-            <div class="fmm-file-info">
-              <div class="fmm-file-name">${entry.file.name}</div>
-              <div class="fmm-file-meta">${size}</div>
-            </div>
-            <button class="fmm-file-remove" onclick="event.stopPropagation();window._fmmRemoveFile('${fieldName}',${entry.id})" title="삭제">✕</button>
-          </div>`;
+  function renderList(key, cfg) {
+    var el = document.getElementById('fm-list-' + key);
+    var cnt = document.getElementById('fm-cnt-' + key);
+    var store = S.files[key];
+    if (el) {
+      el.innerHTML = store.map(function(e) {
+        var th = e.preview
+          ? '<img class="fm-file-thumb" src="' + e.preview + '">'
+          : '<div class="fm-file-ph">🖼️</div>';
+        var sz = e.file.size < 1048576
+          ? (e.file.size / 1024).toFixed(1) + ' KB'
+          : (e.file.size / 1048576).toFixed(1) + ' MB';
+        return '<div class="fm-file-item">' + th +
+          '<div style="flex:1;min-width:0"><div class="fm-file-name">' + e.file.name + '</div>' +
+          '<div class="fm-file-meta">' + sz + '</div></div>' +
+          '<button class="fm-file-rm" onclick="event.stopPropagation();window._fmRm(\'' + key + '\',' + e.id + ')">✕</button></div>';
       }).join('');
     }
-    if (countEl) {
-      countEl.textContent = store.length > 0 ? `${store.length} / ${config.maxFiles}개` : '';
-    }
-    _updateDzState(fieldName, config);
+    if (cnt) cnt.textContent = store.length > 0 ? store.length + ' / ' + cfg.maxFiles + '개' : '';
+    updateDz(key, cfg);
   }
 
-  function _updateDzState(fieldName, config) {
-    const dz = document.getElementById(`fmm-dz-${fieldName}`);
-    const full = (_state.files[fieldName] || []).length >= config.maxFiles;
-    if (dz) {
-      dz.style.opacity = full ? '0.4' : '1';
-      dz.style.pointerEvents = full ? 'none' : 'auto';
-    }
-  }
-
-
-  // ================================================================
-  //  4. Claude Vision 검증 호출
-  // ================================================================
-
-  async function _validateImage(fieldName, entry) {
-    if (!entry.base64 || !_state.selectedCategory) return;
-
-    const vPanel = document.getElementById(`fmm-validation-${fieldName}`);
-    if (!vPanel) return;
-
-    // ── 로딩 스피너 표시 ──
-    vPanel.innerHTML = `
-      <div class="fmm-validating">
-        <div class="fmm-spinner"></div>
-        <div class="fmm-validating-text">
-          AI가 이미지를 분석하고 있습니다...<br>
-          <span style="font-weight:400;font-size:12px;color:var(--fmm-gray-500)">
-            선택하신 "${FMM_CONFIG.CATEGORIES[_state.selectedCategory]?.label_ko || ''}" 카테고리와의 관련성을 검증 중
-          </span>
-        </div>
-      </div>
-    `;
-
-    try {
-      // ── API 호출 ──
-      const response = await fetch(FMM_CONFIG.API_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image_base64: entry.base64,
-          image_type: entry.file.type || 'image/jpeg',
-          category: _state.selectedCategory,
-          contact_email: _getFormValue('email'),
-        }),
-      });
-
-      if (!response.ok) throw new Error(`Server error: ${response.status}`);
-
-      const result = await response.json();
-      _state.validationResults[fieldName] = result;
-
-      // ── 결과 표시 ──
-      _renderValidationResult(fieldName, result);
-
-    } catch (err) {
-      console.error('[FMM] Validation error:', err);
-      vPanel.innerHTML = `
-        <div class="fmm-validating" style="border-color:#fde68a;background:var(--fmm-amber-light)">
-          <div style="font-size:20px">⚠️</div>
-          <div class="fmm-validating-text" style="color:var(--fmm-amber)">
-            이미지 검증 중 오류가 발생했습니다.<br>
-            <span style="font-weight:400;font-size:12px;color:var(--fmm-gray-500)">
-              폼은 정상적으로 제출 가능합니다. 수동 검토가 진행됩니다.
-            </span>
-          </div>
-        </div>
-      `;
-      _state.validationResults[fieldName] = { recommendation: 'review', relevance_score: 0, reasoning: 'API 오류 — 수동 검토 필요' };
-    }
-  }
-
-  function _renderValidationResult(fieldName, result) {
-    const vPanel = document.getElementById(`fmm-validation-${fieldName}`);
-    if (!vPanel) return;
-
-    const score = (result.relevance_score || 0);
-    const rec = result.recommendation || 'review';
-    const circumference = 2 * Math.PI * 19;  // radius 19
-    const offset = circumference * (1 - score);
-
-    let statusClass, statusIcon, statusText, strokeColor;
-    if (rec === 'approve') {
-      statusClass = 'fmm-vp-approve'; statusIcon = '✅'; statusText = '검증 통과';
-      strokeColor = 'var(--fmm-green)';
-    } else if (rec === 'review') {
-      statusClass = 'fmm-vp-review'; statusIcon = '⚠️'; statusText = '수동 검토 필요';
-      strokeColor = 'var(--fmm-amber)';
+  function updateDz(key, cfg) {
+    var dz = document.getElementById('fm-dz-' + key);
+    if (!dz) return;
+    if (S.files[key].length >= cfg.maxFiles) {
+      dz.classList.add('fm-full');
     } else {
-      statusClass = 'fmm-vp-reject'; statusIcon = '❌'; statusText = '검증 미통과';
-      strokeColor = 'var(--fmm-red)';
-    }
-
-    const redFlagsHtml = (result.red_flags && result.red_flags.length > 0)
-      ? `<dt>🚩 의심 요소</dt><dd>${result.red_flags.join(', ')}</dd>`
-      : '';
-
-    vPanel.innerHTML = `
-      <div class="fmm-validation-panel ${statusClass}">
-        <div class="fmm-vp-header">
-          <div class="fmm-score-ring">
-            <svg viewBox="0 0 44 44">
-              <circle class="ring-bg" cx="22" cy="22" r="19"/>
-              <circle class="ring-fg" cx="22" cy="22" r="19"
-                style="stroke:${strokeColor};stroke-dasharray:${circumference};stroke-dashoffset:${offset}"/>
-            </svg>
-            <div class="fmm-score-value" style="color:${strokeColor}">${Math.round(score * 100)}</div>
-          </div>
-          <div>
-            <div>${statusIcon} ${statusText}</div>
-            <div style="font-size:11px;font-weight:400;color:var(--fmm-gray-500);margin-top:2px">
-              관련성 점수: ${score.toFixed(2)} / 1.00
-            </div>
-          </div>
-        </div>
-        <div class="fmm-vp-body">
-          <dl>
-            ${result.product_or_procedure ? `<dt>식별된 제품/시술</dt><dd>${result.product_or_procedure}</dd>` : ''}
-            ${result.brand_or_clinic ? `<dt>브랜드/기관</dt><dd>${result.brand_or_clinic}</dd>` : ''}
-            ${result.date_detected ? `<dt>날짜</dt><dd>${result.date_detected}</dd>` : ''}
-            ${result.amount_detected ? `<dt>금액</dt><dd>${result.amount_detected}</dd>` : ''}
-            <dt>AI 판단 근거</dt><dd>${result.reasoning || '—'}</dd>
-            ${redFlagsHtml}
-          </dl>
-        </div>
-      </div>
-    `;
-
-    // ── 최종 결과 배너 (제품+영수증 모두 검증 완료 시) ──
-    _checkOverallResult();
-  }
-
-
-  // ================================================================
-  //  5. 종합 결과 판단
-  // ================================================================
-
-  function _checkOverallResult() {
-    const bannerContainer = document.getElementById('fmm-overall-result');
-    if (bannerContainer) bannerContainer.remove();
-
-    // 모든 validate:true 필드가 결과를 가지고 있는지 확인
-    const validateFields = Object.entries(FMM_CONFIG.UPLOAD_FIELDS)
-      .filter(([_, c]) => c.validate)
-      .map(([name]) => name);
-
-    const allDone = validateFields.every(f => _state.validationResults[f]);
-    if (!allDone) return;
-
-    // 최종 판정
-    const results = validateFields.map(f => _state.validationResults[f]);
-    const avgScore = results.reduce((s, r) => s + (r.relevance_score || 0), 0) / results.length;
-    const hasReject = results.some(r => r.recommendation === 'reject');
-    const hasReview = results.some(r => r.recommendation === 'review');
-
-    let overallRec;
-    if (hasReject) overallRec = 'reject';
-    else if (hasReview) overallRec = 'review';
-    else overallRec = 'approve';
-
-    // 배너 삽입
-    const banner = document.createElement('div');
-    banner.id = 'fmm-overall-result';
-
-    if (overallRec === 'approve') {
-      banner.innerHTML = `
-        <div class="fmm-next-step">
-          <h3>🎉 검증이 완료되었습니다!</h3>
-          <p>이미지가 확인되었습니다. 아래 제출 버튼을 눌러 인터뷰 일정을 잡아주세요.</p>
-        </div>
-      `;
-    } else if (overallRec === 'reject') {
-      banner.innerHTML = `
-        <div class="fmm-rejected-banner">
-          <h3>죄송합니다. 인터뷰 조건에 부합하지 않습니다.</h3>
-          <p>업로드하신 이미지가 선택하신 카테고리와 일치하지 않습니다.<br>
-          다른 이미지를 업로드하시거나, 올바른 카테고리를 선택해주세요.</p>
-        </div>
-      `;
-    } else {
-      banner.innerHTML = `
-        <div class="fmm-validating" style="border-color:#fde68a;background:var(--fmm-amber-light)">
-          <div style="font-size:20px">📋</div>
-          <div style="font-size:13px;color:var(--fmm-amber)">
-            <strong>추가 검토가 필요합니다</strong><br>
-            <span style="font-weight:400;font-size:12px;color:var(--fmm-gray-500)">
-              제출은 가능합니다. 담당자가 확인 후 연락드리겠습니다.
-            </span>
-          </div>
-        </div>
-      `;
-    }
-
-    // 제출 버튼 앞에 삽입
-    const submitDiv = _state.formEl.querySelector('.hs-submit, .hs_submit');
-    if (submitDiv) {
-      submitDiv.parentElement.insertBefore(banner, submitDiv);
-    }
-
-    // reject 시 제출 버튼 비활성화
-    const submitBtn = _state.formEl.querySelector('input[type="submit"], button[type="submit"]');
-    if (submitBtn && overallRec === 'reject') {
-      submitBtn.disabled = true;
-      submitBtn.style.opacity = '0.4';
-      submitBtn.style.cursor = 'not-allowed';
-    } else if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.style.opacity = '1';
-      submitBtn.style.cursor = 'pointer';
+      dz.classList.remove('fm-full');
     }
   }
 
-
   // ================================================================
-  //  6. 폼 제출 인터셉트
+  //  6. Claude Vision 검증
   // ================================================================
+  function runValidation(key, entry, cfg) {
+    if (!entry.base64 || !S.productName || !S.category) return;
 
-  function interceptFormSubmit(form) {
-    form.addEventListener('submit', function(e) {
-      // 카테고리 미선택 체크
-      if (!_state.selectedCategory) {
-        e.preventDefault();
-        alert('카테고리를 선택해주세요.');
-        return;
-      }
+    var vp = document.getElementById('fm-val-' + key);
+    if (!vp) return;
 
-      // 필수 파일 업로드 체크
-      for (const [fieldName, config] of Object.entries(FMM_CONFIG.UPLOAD_FIELDS)) {
-        if (config.validate && _state.files[fieldName].length === 0) {
-          e.preventDefault();
-          _showError(fieldName, `${config.label}을 업로드해주세요.`);
-          return;
-        }
-      }
+    // 검증 대상 이름: 카테고리 + 구체적 제품명
+    var validationTarget = S.categoryLabel + ' — ' + S.productName;
 
-      // reject 상태면 제출 차단
-      const overallBanner = document.getElementById('fmm-overall-result');
-      if (overallBanner && overallBanner.querySelector('.fmm-rejected-banner')) {
-        e.preventDefault();
-        return;
-      }
+    vp.innerHTML =
+      '<div class="fm-loading">' +
+        '<div class="fm-spin"></div>' +
+        '<div>' +
+          '<div style="font-size:12px;font-weight:700;color:var(--fm-blue)">AI가 이미지를 검증 중...</div>' +
+          '<div style="font-size:10px;color:var(--fm-g500);margin-top:1px">"<strong>' + validationTarget + '</strong>"과(와)의 관련성 확인 중</div>' +
+        '</div>' +
+      '</div>';
 
-      // 검증 결과를 hidden field에 저장
-      _setHiddenFieldValue('screening_status',
-        _getOverallRecommendation());
-      _setHiddenFieldValue('screening_score',
-        String(_getAverageScore()));
+    fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_base64: entry.base64,
+        image_type: entry.file.type || 'image/jpeg',
+        image_role: cfg.role,
+        product_name: validationTarget,
+        contact_email: getFormVal(CONFIG.EMAIL_FIELD),
+      }),
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('API ' + res.status);
+      return res.json();
+    })
+    .then(function(result) {
+      S.results[key] = result;
+      renderResult(key, result);
+      checkOverall();
+    })
+    .catch(function(err) {
+      console.error('[FM] 검증 오류:', err);
+      vp.innerHTML =
+        '<div class="fm-loading" style="border-color:#fde68a;background:var(--fm-amber-lt)">' +
+          '<div style="font-size:18px">⚠️</div>' +
+          '<div><div style="font-size:12px;font-weight:700;color:var(--fm-amber)">검증 중 오류</div>' +
+          '<div style="font-size:10px;color:var(--fm-g500)">폼 제출은 가능합니다.</div></div>' +
+        '</div>';
+      S.results[key] = { recommendation: 'review', relevance_score: 0, reasoning: 'API 오류' };
+      checkOverall();
     });
   }
 
+  function renderResult(key, r) {
+    var vp = document.getElementById('fm-val-' + key);
+    if (!vp) return;
+
+    var s = r.relevance_score || 0;
+    var rec = r.recommendation || 'review';
+    var C = 2 * Math.PI * 17;
+    var off = C * (1 - s);
+
+    var cls, icon, txt, col;
+    if (rec === 'approve') { cls = 'pass'; icon = '✅'; txt = '검증 통과'; col = 'var(--fm-green)'; }
+    else if (rec === 'review') { cls = 'warn'; icon = '⚠️'; txt = '추가 검토'; col = 'var(--fm-amber)'; }
+    else { cls = 'fail'; icon = '❌'; txt = '미통과'; col = 'var(--fm-red)'; }
+
+    var flags = (r.red_flags && r.red_flags.length > 0)
+      ? '<dt>🚩 의심</dt><dd>' + r.red_flags.join(', ') + '</dd>' : '';
+
+    vp.innerHTML =
+      '<div class="fm-vp ' + cls + '">' +
+        '<div class="fm-vp-hd">' +
+          '<div class="fm-ring">' +
+            '<svg viewBox="0 0 38 38"><circle class="bg" cx="19" cy="19" r="17"/>' +
+            '<circle class="fg" cx="19" cy="19" r="17" style="stroke:' + col + ';stroke-dasharray:' + C + ';stroke-dashoffset:' + off + '"/></svg>' +
+            '<div class="fm-ring-v" style="color:' + col + '">' + Math.round(s * 100) + '</div>' +
+          '</div>' +
+          '<div><div>' + icon + ' ' + txt + '</div>' +
+          '<div style="font-size:10px;font-weight:400;color:var(--fm-g500)">점수: ' + s.toFixed(2) + '</div></div>' +
+        '</div>' +
+        '<div class="fm-vp-bd"><dl>' +
+          (r.product_or_procedure ? '<dt>식별 제품/시술</dt><dd>' + r.product_or_procedure + '</dd>' : '') +
+          (r.brand_or_clinic ? '<dt>브랜드/기관</dt><dd>' + r.brand_or_clinic + '</dd>' : '') +
+          (r.date_detected ? '<dt>날짜</dt><dd>' + r.date_detected + '</dd>' : '') +
+          (r.amount_detected ? '<dt>금액</dt><dd>' + r.amount_detected + '</dd>' : '') +
+          '<dt>AI 판단</dt><dd>' + (r.reasoning || '—') + '</dd>' +
+          flags +
+        '</dl></div>' +
+      '</div>';
+  }
 
   // ================================================================
-  //  유틸리티
+  //  7. 종합 결과
   // ================================================================
+  function checkOverall() {
+    var el = document.getElementById('fm-overall');
+    if (!el) return;
 
-  function _getFormValue(fieldName) {
-    if (!_state.formEl) return '';
-    const input = _state.formEl.querySelector(`input[name="${fieldName}"]`);
+    var keys = Object.keys(CONFIG.UPLOADS);
+    var allDone = keys.every(function(k) { return S.results[k]; });
+    if (!allDone) { el.innerHTML = ''; return; }
+
+    var results = keys.map(function(k) { return S.results[k]; });
+    var hasReject = results.some(function(r) { return r.recommendation === 'reject'; });
+    var hasReview = results.some(function(r) { return r.recommendation === 'review'; });
+    var overall = hasReject ? 'reject' : hasReview ? 'review' : 'approve';
+
+    if (overall === 'approve') {
+      el.innerHTML = '<div class="fm-banner-pass"><h4>🎉 검증 완료!</h4><p>"' + S.productName + '" 관련 이미지가 확인되었습니다.</p></div>';
+    } else if (overall === 'reject') {
+      el.innerHTML = '<div class="fm-banner-fail"><h4>이미지가 "' + S.productName + '"과(와) 일치하지 않습니다</h4><p>올바른 사진/영수증을 다시 업로드해주세요.</p></div>';
+    } else {
+      el.innerHTML =
+        '<div class="fm-banner-review">' +
+          '<div style="font-size:16px">📋</div>' +
+          '<div><div style="font-size:12px;font-weight:700;color:var(--fm-amber)">추가 검토 필요</div>' +
+          '<div style="font-size:10px;color:var(--fm-g500)">제출 가능. 담당자 확인 후 연락드립니다.</div></div>' +
+        '</div>';
+    }
+  }
+
+  // ================================================================
+  //  유틸
+  // ================================================================
+  function getFormVal(name) {
+    if (!S.form) return '';
+    var input = S.form.querySelector('input[name="' + name + '"]');
     return input ? input.value : '';
-  }
-
-  function _setHiddenFieldValue(fieldName, value) {
-    if (!_state.formEl) return;
-    let input = _state.formEl.querySelector(`input[name="${fieldName}"]`);
-    if (!input) {
-      // hidden input 생성
-      input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = fieldName;
-      _state.formEl.appendChild(input);
-    }
-    input.value = value;
-  }
-
-  function _getOverallRecommendation() {
-    const results = Object.values(_state.validationResults);
-    if (results.length === 0) return 'review';
-    if (results.some(r => r.recommendation === 'reject')) return 'reject';
-    if (results.some(r => r.recommendation === 'review')) return 'review';
-    return 'approve';
-  }
-
-  function _getAverageScore() {
-    const results = Object.values(_state.validationResults);
-    if (results.length === 0) return 0;
-    return results.reduce((s, r) => s + (r.relevance_score || 0), 0) / results.length;
-  }
-
-  function _showError(fieldName, msg) {
-    const el = document.getElementById(`fmm-err-${fieldName}`);
-    if (el) { el.textContent = msg; el.classList.add('show'); }
-  }
-
-  function _hideError(fieldName) {
-    const el = document.getElementById(`fmm-err-${fieldName}`);
-    if (el) el.classList.remove('show');
-  }
-
-  function _clearAllValidations() {
-    Object.keys(FMM_CONFIG.UPLOAD_FIELDS).forEach(fieldName => {
-      const vPanel = document.getElementById(`fmm-validation-${fieldName}`);
-      if (vPanel) vPanel.innerHTML = '';
-      delete _state.validationResults[fieldName];
-    });
-    const overall = document.getElementById('fmm-overall-result');
-    if (overall) overall.remove();
-
-    // 기존 파일이 있으면 재검증 트리거
-    Object.entries(FMM_CONFIG.UPLOAD_FIELDS).forEach(([fieldName, config]) => {
-      if (config.validate && _state.files[fieldName].length > 0 && _state.selectedCategory) {
-        const firstFile = _state.files[fieldName][0];
-        if (firstFile.base64) {
-          _validateImage(fieldName, firstFile);
-        }
-      }
-    });
   }
 
 })();
