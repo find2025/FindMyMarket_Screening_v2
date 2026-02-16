@@ -1,0 +1,12 @@
+{
+  "name": "findmymarket-validation-api",
+  "version": "1.0.0",
+  "description": "FindMyMarket image validation API with Claude Vision + HubSpot integration",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
